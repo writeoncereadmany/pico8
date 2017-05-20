@@ -241,6 +241,23 @@ animator=controller(function(ent)
   anim.age+=1
 end)
 
+hero_animator=controller(function(ent)
+ sprite=1
+ if ent.dy<0 then
+  sprite=5
+ elseif ent.dy>0 then
+  sprite=6
+ elseif ent.dx==0 then
+  sprite=1
+ else 
+  sprite=2
+ end
+ if ent.dx<0 then
+  sprite=-sprite
+ end
+ ent.sprite=sprite
+end)
+  
 spriter=controller(function(ent)
  s=ent.sprite
  spr(abs(s),ent.x,ent.y,1,1,(s<0))
@@ -249,6 +266,7 @@ end)
 renderers={
   blanka,
   animator,
+  hero_animator,
   spriter
 }
 
@@ -283,7 +301,7 @@ function hero(x,y)
   dx=0,
   dy=0
  }, {
-  animator,
+  hero_animator,
   spriter, 
   kmover, 
   gravity,
