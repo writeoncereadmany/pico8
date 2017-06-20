@@ -1,6 +1,102 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
+-- basic utility functions
+
+function contains(array,elem)
+  for x in all(array) do
+    if x==elem then
+      return true
+    end
+  end
+  return false
+end
+
+-- entity/controller engine
+
+function controller(f)
+  controller = {
+    storage={}
+  }
+  function controller:add(ent)
+    add(self.storage,ent)
+  end
+  
+  function controller:remove(ent)
+    del(self.storage,ent)
+  end
+  
+  function controller:apply()
+    foreach(self.storage,f)
+  end
+  
+  return controller
+end
+
+function relationship(
+  a_type, b_type, f
+)
+  relationship={
+    as={},
+    bs={}
+  }
+  
+  function relationship:add(ent)
+    if contains(ent.types,a_type) then
+      add(self.as,ent)
+    else 
+      assert(contains(ent.types,b_type))
+      add(self.bs,ent)
+    end
+  end
+  
+  function relationship:remove(ent)
+    if contains(ent.types,a_type) then
+      del(self.as,ent)
+    else
+      assert(contains(ent.types,b_type))
+      del(self.bs,ent)
+    end
+  end
+  
+  function relationship:apply()
+    for a in all(self.as) do
+      for b in all(self.bs) do
+        f(a,b)
+      end
+    end
+  end
+  
+  return relationship
+end
+
+function create_entity(types,entity,controllers)
+  entity.types=types
+  entity.controllers={}
+  
+  function entity:register(controller)
+    controller.add(self)
+    add(self.controllers, controller)
+  end
+  
+  function entity:leave(controller)
+    controller.remove(self)
+    del(self.controllers, controller)
+  end
+
+  function entity:destroy()
+    for controller in all(self.controllers) do
+      controller.remove(self)
+    end
+  end
+  
+  for controller in all(controllers) do
+    entity:register(controller)
+  end
+end
+
+-- 
+
 function box(minx,maxx,miny,maxy)
   return {
     minx=minx,
@@ -204,14 +300,6 @@ function explode(bullet,enemy,bullets,enemies)
   end
 end
 
-function _update()
-  ship_move(ship)
-  foreach(enemies, enemy_move)
-  foreach(bullets, bul_move)
-  foreach(stars, star_move)
-  foreach(particles, particle_move)
-  check_collisions(bullets,enemies,explode)
-end
 
 function generate_enemies()
   for x=1,8 do
@@ -260,6 +348,23 @@ function draw_particle(ent)
   pal()
 end
 
+controllers={}
+
+renderers={}
+
+function _update()
+  ship_move(ship)
+  foreach(enemies, enemy_move)
+  foreach(bullets, bul_move)
+  foreach(stars, star_move)
+  foreach(particles, particle_move)
+  check_collisions(bullets,enemies,explode)
+  foreach(
+    controllers,
+    function(x) x:apply() end
+  )
+end
+
 function _draw()
   rectfill(0,0,127,127,0)
   draw_starfield()
@@ -267,6 +372,10 @@ function _draw()
   foreach(enemies, draw_entity)
   foreach(particles, draw_particle)
   draw_entity(ship)
+  foreach(
+    renderers,
+    function(x) x:apply() end
+  )
 end
 
 generate_stars(50)
