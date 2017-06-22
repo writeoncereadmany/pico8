@@ -203,24 +203,6 @@ function particle_move(ent)
   end
 end
 
-function explode(bullet,enemy,bullets,enemies)
-  del(bullets,bullet)
-  del(enemies,enemy)
-  for x=1,12 do
-   add(particles, {
-    x=enemy.x,
-    y=enemy.y,
-    sprite=13,
-    vel={
-      x=rnd(10)-5,
-      y=rnd(10)-5
-    },
-    age=0,
-    max_age=45
-   })
-  end
-end
-
 function velcol(vel)
   if vel>10 then
     return 7
@@ -237,13 +219,6 @@ function velcol(vel)
   else
     return 2
   end
-end
-
-function draw_particle(ent)
-  vel=sq(ent.vel.x)+sq(ent.vel.y)
-  pal(7,velcol(vel))
-  draw_entity(ent)
-  pal()
 end
 
 ------------------------------
@@ -291,9 +266,9 @@ end)
 boxer=controller(function(ent)
   b=translated_box(ent)
   if b.minx<0 then ent.x=ent.x-b.minx end
-  if b.maxx>128 then ent.x=ent.x-(b.maxx-128) end
+  if b.maxx>127 then ent.x=ent.x-(b.maxx-127) end
   if b.miny<0 then ent.y=ent.y-b.miny end
-  if b.maxy>128 then ent.y=ent.y-(b.maxy-128) end
+  if b.maxy>127 then ent.y=ent.y-(b.maxy-127) end
 end)
 
 looper=controller(function(ent)
@@ -309,6 +284,19 @@ looper=controller(function(ent)
   end
 end)
 
+lifespan=controller(function(ent)
+  if 
+    ent.age>ent.lifespan 
+  then
+    ent:destroy()
+  end
+end)
+
+friction=controller(function(ent)
+  ent.dx=ent.dx*(1-ent.mu)
+  ent.dy=ent.dy*(1-ent.mu)
+end)
+
 bullet_enemy_collisions=
   relationship(
     "bullet",
@@ -317,6 +305,7 @@ bullet_enemy_collisions=
   if collided(bullet,enemy) then
     bullet:destroy()
     enemy:destroy()
+    explode(enemy)
   end
 end)  
 
@@ -326,9 +315,11 @@ controllers={
   kb_mover,
   boxer,
   shooter,
+  friction,
   integrator,
   looper,
   purger,
+  lifespan,
   bullet_enemy_collisions
 }
 
@@ -337,7 +328,6 @@ function _update()
     controllers,
     function(x) x:apply() end
   )
-  --ship_move(ship)
   foreach(bullets, bul_move)
   foreach(particles, particle_move)
 end
@@ -380,10 +370,16 @@ function spriter:apply()
  end
 end
 
+particle_renderer=controller(function(ent)
+  col=velcol(sq(ent.dx)+sq(ent.dy))
+  rectfill(ent.x,ent.y,ent.x+1,ent.y+1,col)
+end)
+
 renderers={
   blanka,
   animator,
-  spriter
+  spriter,
+  particle_renderer
 }
 
 function _draw()
@@ -392,7 +388,31 @@ function _draw()
     function(x) x:apply() end
   )
   foreach(particles, draw_particle)
-  --draw_entity(ship)
+end
+
+-----------------------------
+-- controller-bound functions
+-----------------------------
+
+function explode(ent)
+  for x=1,12 do
+   create_entity({},{
+    x=ent.x,
+    y=ent.y,
+    dx=rnd(10)-5,
+    dy=rnd(10)-5,
+    mu=0.05,
+    age=0,
+    lifespan=60,
+   },{
+    ager,
+    integrator,
+    friction,
+    lifespan,
+    purger,
+    particle_renderer    
+   })
+  end
 end
 
 -----------------------------
@@ -466,7 +486,7 @@ create_entity({
   age=0,
   fire_rate=5,
   next_shot=0,
-  box=box(2,5,2,5)
+  box=box(0,7,0,7)
 },{
   ager,
   kb_mover,
