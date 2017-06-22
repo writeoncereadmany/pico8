@@ -116,17 +116,6 @@ function box(minx,maxx,miny,maxy)
   }
 end
 
-ship={
-  x=64,
-  y=112,
-  sprite=1,
-  vel=2,
-  cooldown=0,
-  fire_rate=5,
-  box=box(2,5,2,5)
-}
-
-enemies={}
 particles={}
 
 function new_bullet(x,y)
@@ -143,15 +132,9 @@ function new_bullet(x,y)
   },{
     integrator,
     purger,
+    bullet_enemy_collisions,
     spriter
   })
-end
-
-function shoot(ent)
-  if ent.cooldown<0 then
-    new_bullet(ent.x,ent.y)   
-    ent.cooldown=ent.fire_rate
-  end
 end
 
 function ship_move(ent)
@@ -238,10 +221,6 @@ function explode(bullet,enemy,bullets,enemies)
   end
 end
 
-function draw_entity(ent) 
-  spr(ent.sprite, ent.x, ent.y)
-end
-
 function velcol(vel)
   if vel>10 then
     return 7
@@ -300,6 +279,15 @@ kb_mover=controller(function(ent)
   if btn(1) then ent.x=ent.x+2 end
 end)
 
+shooter=controller(function(ent)
+  if btn(4) and 
+     ent.next_shot<ent.age 
+  then
+    new_bullet(ent.x,ent.y)   
+    ent.next_shot=ent.age+ent.fire_rate
+  end
+end)
+
 boxer=controller(function(ent)
   b=translated_box(ent)
   if b.minx<0 then ent.x=ent.x-b.minx end
@@ -321,14 +309,27 @@ looper=controller(function(ent)
   end
 end)
 
+bullet_enemy_collisions=
+  relationship(
+    "bullet",
+    "enemy",
+    function(bullet,enemy)
+  if collided(bullet,enemy) then
+    bullet:destroy()
+    enemy:destroy()
+  end
+end)  
+
 controllers={
   ager,
   pather,
   kb_mover,
   boxer,
+  shooter,
   integrator,
   looper,
-  purger
+  purger,
+  bullet_enemy_collisions
 }
 
 function _update()
@@ -449,6 +450,7 @@ for x=1,8 do
   }, {
     ager,
     pather,
+    bullet_enemy_collisions,
     animator,
     spriter
   })
@@ -462,11 +464,13 @@ create_entity({
   sprite=1,
   layer="fg_2",
   age=0,
+  fire_rate=5,
   next_shot=0,
   box=box(2,5,2,5)
 },{
   ager,
   kb_mover,
+  shooter,
   boxer,
   spriter
 })
