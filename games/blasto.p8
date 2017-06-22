@@ -1,6 +1,15 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
+-- debugging
+function describe(obj)
+  y=0
+  for k,v in pairs(obj) do
+    print(k,0,y,13)
+    y=y+8
+  end
+end
+
 -- basic utility functions
 
 function contains(array,elem)
@@ -14,12 +23,43 @@ end
 
 function noop() end
 
-function sq(x)
-  return x*x
+function pt(x,y)
+  return {x=x,y=y}
+end
+
+function mulpt(pt,factor)
+  return {
+    x=pt.x*factor,
+    y=pt.y*factor
+  }
 end
 
 function phase(x,frame_length,frames)
   return flr(x/frame_length)%frames
+end
+
+-- bezier curves?
+function curve(sp,sc,ec,ep) 
+  return {
+    sp=sp,
+    sc=mulpt(sc,3),
+    ec=mulpt(ec,3),
+    ep=ep
+  }
+end
+
+function bezier(curve,p)
+  r=1-p
+  return pt(
+    r^3*curve.sp.x+
+      r^2*p*curve.sc.x+
+      r*p^2*curve.ec.x+
+      p^3*curve.ep.x,
+    r^3*curve.sp.y+
+      r^2*p*curve.sc.y+
+      r*p^2*curve.ec.y+
+      p^3*curve.ep.y
+    )  
 end
 
 -- entity/controller engine
@@ -116,8 +156,6 @@ function box(minx,maxx,miny,maxy)
   }
 end
 
-particles={}
-
 function new_bullet(x,y)
   create_entity({
     "bullet"
@@ -149,19 +187,17 @@ function ship_move(ent)
 end
 
 function simple_path(ent)
-  return {
-    x=ent.age+ent.initial_x,
-    y=ent.initial_y+20*cos(ent.age/100)
-  }
+  return pt(
+    ent.age+ent.initial_x,
+    ent.initial_y+20*cos(ent.age/100)
+  )
 end
 
-function enemy_move(ent)
-  ent.age=ent.age+1
-  if phase(ent.age,15,2)==1 then
-    ent.sprite=16
-  else
-    ent.sprite=17
-  end
+function bezier_path(ent)
+  progress=(ent.age%90)/90
+  return bezier(
+    ent.curve,
+    progress)
 end
 
 function translated_box(ent)
@@ -190,17 +226,6 @@ function check_collisions(as, bs, f)
    end     
   end
  end
-end
-
-function particle_move(ent) 
-  ent.age=ent.age+1
-  ent.x=ent.x+ent.vel.x
-  ent.y=ent.y+ent.vel.y
-  ent.vel.x=ent.vel.x*0.95
-  ent.vel.y=ent.vel.y*0.95
-  if(ent.age>ent.max_age) then
-    del(particles,ent)
-  end
 end
 
 function velcol(vel)
@@ -372,7 +397,7 @@ function spriter:apply()
 end
 
 particle_renderer=controller(function(ent)
-  col=velcol(sq(ent.dx)+sq(ent.dy))
+  col=velcol((ent.dx)^2+(ent.dy)^2)
   rectfill(ent.x,ent.y,ent.x+1,ent.y+1,col)
 end)
 
@@ -494,6 +519,24 @@ create_entity({
   kb_mover,
   shooter,
   boxer,
+  spriter
+})
+
+create_entity({},{
+  x=1,
+  y=1,
+  age=0,
+  layer="fg_2",
+  sprite=18,
+  path=bezier_path,
+  curve=curve(
+    pt(32,32),
+    pt(160,32),
+    pt(-32,96),
+    pt(96,96))
+},
+{ ager,
+  pather,
   spriter
 })
 __gfx__
