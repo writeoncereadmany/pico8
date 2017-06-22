@@ -175,17 +175,6 @@ function new_bullet(x,y)
   })
 end
 
-function ship_move(ent)
-  ent.cooldown=ent.cooldown-1
-  if btn(0) then 
-    ent.x = ent.x-ent.vel end
-  if btn(1) then
-    ent.x = ent.x+ent.vel end
-  if ent.x<0 then ent.x=0 end
-  if ent.x>120 then ent.x=120 end
-  if btn(4) then shoot(ent) end
-end
-
 function simple_path(ent)
   return pt(
     ent.age+ent.initial_x,
@@ -193,11 +182,22 @@ function simple_path(ent)
   )
 end
 
-function bezier_path(ent)
-  progress=(ent.age%90)/90
-  return bezier(
-    ent.curve,
-    progress)
+function multi_bezier_path(ent)
+  age=ent.age
+  for segment in all(ent.segments) do
+    start=segment.start
+    fin=segment.fin
+    len=fin-start
+    if age>=start and age<=fin then
+      progress=(age-start)/len
+      return bezier(
+        segment.curve,
+        progress
+      )
+    end
+  end
+  ent:destroy()
+  return pt(0,0)    
 end
 
 function translated_box(ent)
@@ -528,12 +528,82 @@ create_entity({},{
   age=0,
   layer="fg_2",
   sprite=18,
-  path=bezier_path,
-  curve=curve(
-    pt(32,32),
-    pt(160,32),
-    pt(-32,96),
-    pt(96,96))
+  path=multi_bezier_path,
+  segments={
+    {
+      start=0,
+      fin=30,
+      curve=curve(
+        pt(-16,32),
+        pt(0,32),
+        pt(16,32),
+        pt(32,32)
+      )
+    },{
+      start=31,
+      fin=60,
+      curve=curve(
+        pt(32,32),
+        pt(64,32),
+        pt(64,64),
+        pt(96,64)
+      )
+    },{
+      start=61,
+      fin=90,
+      curve=curve(
+        pt(96,64),
+        pt(128,64),
+        pt(128,32),
+        pt(96,32)
+      )
+    },{
+      start=91,
+      fin=120,
+      curve=curve(
+        pt(96,32),
+        pt(64,32),
+        pt(64,64),
+        pt(32,64)
+      )
+    },{
+      start=121,
+      fin=150,
+      curve=curve(
+        pt(32,64),
+        pt(0,64),
+        pt(0,32),
+        pt(32,32)
+      )  
+    },{
+      start=151,
+      fin=195,
+      curve=curve(
+        pt(32,32),
+        pt(96,32),
+        pt(128,96),
+        pt(64,96)
+      )  
+    },{
+      start=196,
+      fin=240,
+      curve=curve(
+        pt(64,96),
+        pt(0,96),
+        pt(32,32),
+        pt(96,32)
+      )  
+    },{
+      start=241,
+      fin=270,
+      curve=curve(
+        pt(96,32),
+        pt(112,32),
+        pt(128,32),
+        pt(144,32)
+      )  
+    }
+  }
 },
 { ager,
   pather,
