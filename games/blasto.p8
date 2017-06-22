@@ -14,6 +14,14 @@ end
 
 function noop() end
 
+function sq(x)
+  return x*x
+end
+
+function phase(x,frame_length,frames)
+  return flr(x/frame_length)%frames
+end
+
 -- entity/controller engine
 
 function controller(f)
@@ -118,32 +126,31 @@ ship={
   box=box(2,5,2,5)
 }
 
-stars={}
-bullets={}
 enemies={}
 particles={}
 
-function new_bullet(x, y)
-  return {
+function new_bullet(x,y)
+  create_entity({
+    "bullet"
+  },{ 
     x=x,
     y=y,
+    dx=0,
+    dy=-8,
     sprite=4,
-    vel=8,
-    box=box(3,4,2,4)
-  }
+    layer="fg_0",
+    box=box(3,4,1,3)
+  },{
+    integrator,
+    purger,
+    spriter
+  })
 end
 
 function shoot(ent)
   if ent.cooldown<0 then
-    add(bullets, new_bullet(ent.x, ent.y))
+    new_bullet(ent.x,ent.y)   
     ent.cooldown=ent.fire_rate
-  end
-end
-
-function bul_move(bul)
-  bul.y = bul.y-bul.vel
-  if bul.y<-8 or bul.y>128 then 
-    del(bullets,bul) 
   end
 end
 
@@ -156,20 +163,6 @@ function ship_move(ent)
   if ent.x<0 then ent.x=0 end
   if ent.x>120 then ent.x=120 end
   if btn(4) then shoot(ent) end
-end
-
-function draw_if(flag)
-  function draw(ent)
-    if fget(ent.sprite,flag) then
-      draw_entity(ent)
-    end
-  end
-  return draw
-end
-
-
-function phase(x,frame_length,frames)
-  return flr(x/frame_length)%frames
 end
 
 function simple_path(ent)
@@ -185,18 +178,6 @@ function enemy_move(ent)
     ent.sprite=16
   else
     ent.sprite=17
-  end
-  newpos=ent.path(ent)
-  ent.x=newpos.x
-  ent.y=newpos.y
-  if rnd(1)<ent.aggression then
-    add(bullets, {
-      x=ent.x,
-      y=ent.y,
-      vel=-4,
-      sprite=18,
-      box=box(0,0,7,7)
-    })
   end
 end
 
@@ -257,27 +238,8 @@ function explode(bullet,enemy,bullets,enemies)
   end
 end
 
-
-function generate_enemies()
-  for x=1,8 do
-    add(enemies, {
-      initial_x=-8,
-      initial_y=32,
-      sprite=6,
-      box=box(0,7,0,7),
-      age=x*(-12),
-      path=simple_path,
-      aggression=0.02
-    })
-  end
-end
-
 function draw_entity(ent) 
   spr(ent.sprite, ent.x, ent.y)
-end
-
-function sq(x)
-  return x*x
 end
 
 function velcol(vel)
@@ -308,9 +270,19 @@ end
 ------------------------------
 -- controllers 
 ------------------------------
+ager=controller(function(ent)
+  ent.age=ent.age+1
+end)
+
 integrator=controller(function(ent)
   ent.x=ent.x+ent.dx
   ent.y=ent.y+ent.dy
+end)
+
+pather=controller(function(ent)
+  newpos=ent.path(ent)
+  ent.x=newpos.x
+  ent.y=newpos.y
 end)
 
 purger=controller(function(ent)
@@ -321,6 +293,19 @@ purger=controller(function(ent)
   then
     ent:destroy()
   end
+end)
+
+kb_mover=controller(function(ent)
+  if btn(0) then ent.x=ent.x-2 end
+  if btn(1) then ent.x=ent.x+2 end
+end)
+
+boxer=controller(function(ent)
+  b=translated_box(ent)
+  if b.minx<0 then ent.x=ent.x-b.minx end
+  if b.maxx>128 then ent.x=ent.x-(b.maxx-128) end
+  if b.miny<0 then ent.y=ent.y-b.miny end
+  if b.maxy>128 then ent.y=ent.y-(b.maxy-128) end
 end)
 
 looper=controller(function(ent)
@@ -337,6 +322,10 @@ looper=controller(function(ent)
 end)
 
 controllers={
+  ager,
+  pather,
+  kb_mover,
+  boxer,
   integrator,
   looper,
   purger
@@ -347,11 +336,9 @@ function _update()
     controllers,
     function(x) x:apply() end
   )
-  ship_move(ship)
-  foreach(enemies, enemy_move)
+  --ship_move(ship)
   foreach(bullets, bul_move)
   foreach(particles, particle_move)
-  check_collisions(bullets,enemies,explode)
 end
 
 ------------------------------
@@ -360,6 +347,11 @@ end
 
 blanka=controller(function(bg)
   rectfill(0,0,127,127,bg.col)
+end)
+
+animator=controller(function(ent)
+  f=phase(ent.age,ent.flen,#(ent.frames))+1
+  ent.sprite=ent.frames[f]
 end)
 
 spriter={
@@ -389,6 +381,7 @@ end
 
 renderers={
   blanka,
+  animator,
   spriter
 }
 
@@ -397,12 +390,13 @@ function _draw()
     renderers,
     function(x) x:apply() end
   )
-  foreach(bullets, draw_entity)
-  foreach(enemies, draw_entity)
   foreach(particles, draw_particle)
-  draw_entity(ship)
+  --draw_entity(ship)
 end
 
+-----------------------------
+-- entities
+-----------------------------
 create_entity(
   {},
   {col=0},
@@ -440,8 +434,42 @@ create_stars(10,10,"bg_1",0.2)
 create_stars(15,11,"bg_2",0.3)
 create_stars(25,12,"bg_2",0.5)
 
-generate_enemies()
+for x=1,8 do
+  create_entity({
+    "enemy"
+  }, {
+    initial_x=-6,
+    initial_y=32,
+    frames={16,17},
+    layer="fg_1",
+    flen=15,
+    path=simple_path,
+    age=-12*x,
+    box=box(0,7,0,7)
+  }, {
+    ager,
+    pather,
+    animator,
+    spriter
+  })
+end
 
+create_entity({
+  "ship"
+},{
+  x=64,
+  y=112,
+  sprite=1,
+  layer="fg_2",
+  age=0,
+  next_shot=0,
+  box=box(2,5,2,5)
+},{
+  ager,
+  kb_mover,
+  boxer,
+  spriter
+})
 __gfx__
 000000000006d000060000600606d060000000000000000000488400004e8200005d500000000000000000000000000000000000000000000000000000000000
 00000000000dd0000d0dd0d00d0dd0d000077000070000700477e82004e888200005650000000000000000000000000000000000000000000000000000000000
