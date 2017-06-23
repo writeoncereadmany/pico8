@@ -1,15 +1,6 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
--- debugging
-function describe(obj)
-  y=0
-  for k,v in pairs(obj) do
-    print(k,0,y,13)
-    y=y+8
-  end
-end
-
 -- basic utility functions
 
 function contains(array,elem)
@@ -401,11 +392,17 @@ particle_renderer=controller(function(ent)
   rectfill(ent.x,ent.y,ent.x+1,ent.y+1,col)
 end)
 
+hud=controller(function(ent)
+  print("score: 0",0,0,10)
+  print("lives: 0",0,122,10)
+end)
+
 renderers={
   blanka,
   animator,
   spriter,
-  particle_renderer
+  particle_renderer,
+  hud
 }
 
 function _draw()
@@ -522,12 +519,11 @@ create_entity({
   spriter
 })
 
-create_entity({},{
-  x=1,
-  y=1,
+create_entity({"enemy"},{
   age=0,
   layer="fg_2",
   sprite=18,
+  box=box(0,7,0,7),
   path=multi_bezier_path,
   segments={
     {
@@ -607,8 +603,11 @@ create_entity({},{
 },
 { ager,
   pather,
-  spriter
+  spriter,
+  bullet_enemy_collisions
 })
+
+create_entity({"game"},{},{hud})
 __gfx__
 000000000006d000060000600606d060000000000000000000488400004e8200005d500000000000000000000000000000000000000000000000000000000000
 00000000000dd0000d0dd0d00d0dd0d000077000070000700477e82004e888200005650000000000000000000000000000000000000000000000000000000000
