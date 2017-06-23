@@ -56,59 +56,48 @@ end
 -- entity/controller engine
 
 function controller(f)
-  c = {
-    storage={}
+  return {
+    storage={},
+    add=function(self,ent)
+      add(self.storage,ent)
+    end,
+    remove=function(self, ent)
+      del(self.storage,ent)
+    end,
+    apply=function(self)
+      foreach(self.storage,f)
+    end
   }
-  function c:add(ent)
-    add(self.storage,ent)
-  end
-  
-  function c:remove(ent)
-    del(self.storage,ent)
-  end
-  
-  function c:apply()
-    foreach(self.storage,f)
-  end
-  
-  return c
 end
 
 function relationship(
   a_type, b_type, f
 )
-  r={
+  return {
     as={},
-    bs={}
-  }
-  
-  function r:add(ent)
-    if contains(ent.types,a_type) then
-      add(self.as,ent)
-    else 
-      assert(contains(ent.types,b_type))
-      add(self.bs,ent)
-    end
-  end
-  
-  function r:remove(ent)
-    if contains(ent.types,a_type) then
-      del(self.as,ent)
-    else
-      assert(contains(ent.types,b_type))
-      del(self.bs,ent)
-    end
-  end
-  
-  function r:apply()
-    for a in all(self.as) do
-      for b in all(self.bs) do
-        f(a,b)
+    bs={},
+    fortype=function(self,ent)
+      if contains(ent.types,a_type) then
+        return self.as
+      else
+        assert(contains(ent.types,b_type))
+        return self.bs
+      end
+    end,
+    add=function(self,ent)
+      add(self:fortype(ent),ent)
+    end,
+    remove=function(self,ent)
+      del(self:fortype(ent),ent)
+    end,
+    apply=function(self)
+      for a in all(self.as) do
+        for b in all(self.bs) do
+          f(a,b)
+        end
       end
     end
-  end
-  
-  return r
+  }
 end
 
 function create_entity(types,entity,controllers)
