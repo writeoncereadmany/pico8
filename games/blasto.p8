@@ -29,8 +29,9 @@ function phase(x,frame_length,frames)
   return flr(x/frame_length)%frames
 end
 
--- bezier curves?
+-- bezier curves
 function curve(sp,sc,ec,ep) 
+  -- premultiply the control points
   return {
     sp=sp,
     sc=mulpt(sc,3),
@@ -134,25 +135,6 @@ function box(minx,maxx,miny,maxy)
     miny=miny,
     maxy=maxy
   }
-end
-
-function new_bullet(x,y)
-  create_entity({
-    "bullet"
-  },{ 
-    x=x,
-    y=y,
-    dx=0,
-    dy=-8,
-    sprite=4,
-    layer="fg_0",
-    box=box(3,4,1,3)
-  },{
-    integrator,
-    purger,
-    bullet_enemy_collisions,
-    spriter
-  })
 end
 
 function simple_path(ent)
@@ -405,6 +387,25 @@ end
 -----------------------------
 -- controller-bound functions
 -----------------------------
+
+function new_bullet(x,y)
+  create_entity({
+    "bullet"
+  },{ 
+    x=x,
+    y=y,
+    dx=0,
+    dy=-8,
+    sprite=4,
+    layer="fg_0",
+    box=box(3,4,1,3)
+  },{
+    integrator,
+    purger,
+    bullet_enemy_collisions,
+    spriter
+  })
+end
 
 function explode(ent)
   sfx(1)
